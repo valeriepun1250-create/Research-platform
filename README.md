@@ -1,21 +1,40 @@
 # OT Research Platform
 
-Local prototype for occupational therapy research data collection. Run with Node.js 24 or newer:
+Browser-only occupational therapy research workspace. The production build is a static website: no API server or hosted database is required.
+
+## Run and deploy
 
 ```sh
-npm start
+npm install
+npm run dev
+npm test
+npm run build
 ```
 
-Open `http://127.0.0.1:3000`. Data is stored in `.data/platform.sqlite`, and original uploads are stored in `.data/notes`. Set `PORT` and `DATA_DIR` to change those defaults.
+Open the URL printed by Vite. Deploy `dist/` as a static site. `netlify.toml` configures Netlify automatically; for GitHub Pages, build with `npm run build` and publish the contents of `dist/`. The site uses relative asset URLs, so it also works under a repository subpath.
 
-The prototype includes project and variable setup, subject codes, CSV/XLSX import with column mapping, TXT/PDF/image note intake, local redaction and extraction, manual review, and CSV/XLSX/codebook/SPSS syntax export. Local extraction uses deterministic rules by default. To use a local Ollama model, set `OLLAMA_URL=http://127.0.0.1:11434` and `OLLAMA_MODEL` to an installed model name. Model output must pass validation and still requires human approval.
+## Data flow
 
-When importing a CSV/XLSX into a new research project, the importer proposes variables from file columns. Confirm the subject ID and assessment date mappings, then review each proposed key and data type before committing. New variables and imported records are saved together; a validation error saves neither. Categorical text is initially stored as TEXT, so review numeric coding separately before statistical analysis.
+- Project definitions, variables, subjects, review drafts, records, and the currently linked Excel workbook are stored in this browser's IndexedDB for this site origin.
+- The interface defaults to English. Use the language selector in the top bar to switch to Traditional Chinese; the preference is retained in this browser.
+- TXT files are read in the browser. PDF text is read with PDF.js; scanned PDF pages and PNG/JPG images use local Tesseract OCR with bundled English and Traditional Chinese data. The note content is not uploaded to a server. The original file is not retained in IndexedDB; the redacted text and draft are retained for review.
+- Extraction uses local rules and requires human review. No cloud AI service is called. Detection and redaction are limited heuristics, so review the displayed note for identifiers before sharing any backup.
+- Approving a draft or importing legacy data immediately downloads an Excel workbook. If a workbook is linked in Export Center, matching rows are updated by subject code and assessment date and a new `_updated.xlsx` copy is downloaded. The latest generated workbook is also kept in IndexedDB for the next update. The original file on disk is never overwritten automatically.
+- Export Center can download CSV or a fresh XLSX with a Codebook worksheet. Numeric missing values are `-99` (not recorded) and `-98` (not assessable); a real score of `0` remains `0`.
+- Use **備份本機資料** to download a JSON backup and **還原備份** to restore it on another browser/device. The JSON backup may contain clinical text and must be handled accordingly.
 
-Variable Settings supports editing display labels, types, numeric ranges, units, and category code labels. Updates are versioned and audited. Existing stored values must remain valid under the new range or code list; changing the type of a populated variable requires creating a replacement variable and migrating its data separately.
+## Moving existing SQLite data
 
-In **Export Center**, choose an existing `.xlsx` file under **Export to a specified Excel file** and map its subject, assessment date, and study variable columns. The platform matches existing rows by subject code and date, updates mapped columns, appends new records to the first worksheet, and downloads a new `_updated.xlsx` copy. The selected original file is not overwritten. Other worksheets and unmapped cells are preserved. The target sheet must have a unique header row and contiguous data rows; Excel Tables are not yet supported.
+The old Node/SQLite files remain in the repository for one-time migration only. They are not used by the static build. With Node.js 24, run:
 
-**Use test or already de-identified data only.** This prototype does not provide authentication, role based access, encrypted file storage, validated PHI scrubbing, backup/retention policy, or a formal PDPO deployment review. The local SQLite database and macOS Vision OCR are development choices, not the intended production infrastructure. Before clinical deployment, migrate to managed PostgreSQL/Prisma and private encrypted object storage, add institutional SSO/MFA, enforce project roles, validate a PHI detection workflow, and complete the institution's privacy and security assessment.
+```sh
+node scripts/migrate-sqlite.mjs
+```
 
-Run `npm test` for the API workflow test. The OCR helper compiles on first PDF/image upload and requires macOS Command Line Tools.
+This writes `.data/browser-migration.json` locally. In the new website, open Export Center and choose **還原備份** to import that file. The export omits original uploaded files and file paths. Keep `.data/` and the migration JSON outside the deployed `dist/` folder.
+
+## Browser storage limits
+
+Restarting a device normally retains IndexedDB, but clearing site data, private browsing, storage pressure, or changing the website origin can remove access. Keep downloaded Excel files and periodic JSON backups outside the browser. Safari on iPad may evict site storage under storage pressure. A linked workbook and all local records belong only to the current browser/profile. PDF or image OCR can be slow on an iPad, especially for multi-page scanned PDFs.
+
+The old `server.js` and `test/platform.test.js` are legacy migration references. The current application entry point is `public/index.html`; `npm test` runs browser tests against the static frontend.
