@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 
 const port = 41000 + Math.floor(Math.random() * 1000);
 const url = `http://127.0.0.1:${port}/`;
@@ -111,6 +112,16 @@ test('browser stores drafts locally and downloads approved Excel', async () => {
     await page.setViewportSize({ width: 1280, height: 800 });
 
     await page.locator('[data-nav="import"]').click();
+    const legacyBook = new ExcelJS.Workbook();
+    const legacySheet = legacyBook.addWorksheet('Legacy');
+    legacySheet.addRow(['subject_id', 'assessment_date', 'moca_total']);
+    legacySheet.addRow(['OT-003', '2026-10-29', 18]);
+    const legacyZip = await JSZip.loadAsync(await legacyBook.xlsx.writeBuffer());
+    legacyZip.file('xl/worksheets/sheet99.xml', '');
+    const legacyXlsx = await legacyZip.generateAsync({ type: 'nodebuffer' });
+    await page.locator('#import-file').setInputFiles({ name: 'legacy.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: legacyXlsx });
+    await page.locator('.mapping-select').first().waitFor();
+    assert.match(await page.locator('.selected-file').innerText(), /legacy\.xlsx/);
     await page.locator('#import-file').setInputFiles({ name: 'legacy.csv', mimeType: 'text/csv', buffer: Buffer.from('subject_id,assessment_date,moca_total\nOT-002,2026-10-30,19\n') });
     await page.locator('.mapping-select').first().waitFor();
     const importing = page.waitForEvent('download');

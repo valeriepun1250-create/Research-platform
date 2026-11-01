@@ -91,6 +91,7 @@ const translations = {
   '找不到專案': 'Study not found', '無法讀取檔案': 'Could not read file',
   'CSV 引號沒有正確關閉': 'CSV quotes are not closed correctly', 'Excel 沒有工作表': 'Excel workbook has no worksheets',
   '只支援 CSV 或 XLSX': 'Only CSV and XLSX are supported',
+  '無法讀取此 Excel 檔案。請確認是有效的 .xlsx，或另存為 CSV 後匯入。': 'Could not read this Excel file. Check that it is a valid .xlsx, or save it as CSV and import again.',
   'Excel 首行需要不重複的欄位名稱': 'The first Excel row must have unique, nonblank column names',
   '請對應受試者編號和評估日期': 'Map subject ID and assessment date',
   '只支援 TXT、PDF、PNG 和 JPG': 'Only TXT, PDF, PNG, and JPG are supported',
